@@ -233,7 +233,7 @@ def get_join_keyboard():
     buttons.append([InlineKeyboardButton(text="✅ Verify Join", callback_data="check_join")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-# --- UPDATED MAIN MENU (Exactly as requested) ---
+# --- MAIN MENU (Exactly as requested) ---
 def get_main_menu(user_id):
     keyboard = [
         # Row 1 - 📱 Number  📱 Aadhaar
@@ -310,38 +310,29 @@ async def fetch_api_data(api_type, input_data):
             resp = await client.get(url, headers=headers, timeout=30)
             if resp.status_code != 200:
                 raise Exception(f"API Error {resp.status_code}")
+            
+            # 🔥 Special handling for vehicle_to_number (always raw text)
+            if api_type == 'vehicle_to_number':
+                raw_text = resp.text
+                return {"raw_text": raw_text, **get_branding()}
+            
+            # For all other APIs, try to parse JSON
             try:
                 raw_data = resp.json()
-            except:
-                content_type = resp.headers.get('content-type', '').lower()
-                if 'html' in content_type:
-                    html_text = resp.text
-                    json_patterns = [
-                        r'var\s+data\s*=\s*({.*?});',
-                        r'JSON\.parse\(\'({.*?})\'\)',
-                        r'({.*?})'
-                    ]
-                    for pattern in json_patterns:
-                        match = re.search(pattern, html_text, re.DOTALL)
-                        if match:
-                            try:
-                                raw_data = json.loads(match.group(1))
-                                break
-                            except:
-                                continue
-                    else:
-                        raw_data = {"html_response": "Data received but not in JSON format", "content": html_text[:500]}
+                extra_blacklist = api_info.get('extra_blacklist', [])
+                raw_data = clean_api_response(raw_data, extra_blacklist)
+                if isinstance(raw_data, dict):
+                    raw_data.update(get_branding())
+                elif isinstance(raw_data, list):
+                    raw_data = {"results": raw_data, **get_branding()}
                 else:
-                    raw_data = {"text_response": resp.text[:500]}
-        extra_blacklist = api_info.get('extra_blacklist', [])
-        raw_data = clean_api_response(raw_data, extra_blacklist)
-        if isinstance(raw_data, dict):
-            raw_data.update(get_branding())
-        elif isinstance(raw_data, list):
-            raw_data = {"results": raw_data, **get_branding()}
-        else:
-            raw_data = {"data": str(raw_data), **get_branding()}
-        return raw_data
+                    raw_data = {"data": str(raw_data), **get_branding()}
+                return raw_data
+            except:
+                # Fallback to raw text if JSON parsing fails
+                raw_text = resp.text
+                return {"raw_text": raw_text, **get_branding()}
+                
     except Exception as e:
         logging.error(f"API fetch error {api_type}: {e}")
         return {"error": "Server Error", "details": str(e)[:200], **get_branding()}
@@ -368,6 +359,55 @@ async def process_api_call(message: types.Message, api_type: str, input_data: st
     raw_data = await fetch_api_data(api_type, input_data)
     await status_msg.delete()
 
+    # 🔥 Check if it's raw text response (for vehicle_to_number)
+    if isinstance(raw_data, dict) and 'raw_text' in raw_data:
+        # Raw text response
+        raw_text = raw_data['raw_text']
+        
+        # Prepare message
+        msg = f"🔍 <b>{api_type.upper()} Lookup Results</b>\n\n"
+        msg += f"📊 <b>Input:</b> <code>{input_data}</code>\n"
+        msg += f"📅 <b>Date:</b> {datetime.now().strftime('%d-%m-%Y %H:%M')}\n\n"
+        msg += f"<pre>{raw_text}</pre>\n\n"
+        msg += f"👨‍💻 <b>Developer:</b> {DEV_USERNAME}\n"
+        msg += f"⚡ <b>Powered by:</b> {POWERED_BY}"
+        
+        # Check if message too long
+        if len(msg) > 4096:
+            # Send as file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+                f.write(f"API Response for {api_type} - {input_data}\n\n")
+                f.write(raw_text)
+                f.write(f"\n\n👨‍💻 Developer: {DEV_USERNAME}\n⚡ Powered by: {POWERED_BY}")
+                temp_file = f.name
+            await message.reply_document(
+                FSInputFile(temp_file, filename=f"{api_type}_{input_data}.txt"),
+                caption=f"🔍 {api_type.upper()} result for {input_data}",
+                parse_mode="HTML"
+            )
+            os.unlink(temp_file)
+        else:
+            await message.reply(msg, parse_mode="HTML")
+        
+        # Log to channel (raw text)
+        log_channel = LOG_CHANNELS.get(api_type)
+        if log_channel and log_channel != "-1000000000000":
+            try:
+                username = message.from_user.username or 'N/A'
+                user_info = f"👤 User: {user_id} (@{username})"
+                log_msg = f"📊 <b>Lookup Log - {api_type.upper()}</b>\n\n{user_info}\n🔎 Type: {api_type}\n⌨️ Input: {input_data}\n📅 Date: {datetime.now().strftime('%d-%m-%Y %H:%M')}\n\n📄 Result:\n<pre>{raw_text[:1500]}</pre>"
+                if len(raw_text) > 1500:
+                    log_msg += "\n... [truncated]"
+                await bot.send_message(int(log_channel), log_msg, parse_mode="HTML")
+            except Exception as e:
+                logging.error(f"Log channel error: {e}")
+        
+        # Log to database
+        await log_lookup(user_id, api_type, input_data, raw_text[:1000])
+        await update_last_active(user_id)
+        return  # ✅ Important: yahan return karo, taaki aage ka JSON code na chale
+
+    # --- JSON handling for all other APIs ---
     formatted_json, is_truncated = format_json_for_display(raw_data, 3500)
     formatted_json = formatted_json.replace('<', '&lt;').replace('>', '&gt;')
     json_size = len(json.dumps(raw_data, ensure_ascii=False))
@@ -375,7 +415,6 @@ async def process_api_call(message: types.Message, api_type: str, input_data: st
 
     temp_file = None
     txt_file = None
-    files_sent_successfully = False
 
     if should_send_as_file:
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as f:
@@ -401,7 +440,6 @@ async def process_api_call(message: types.Message, api_type: str, input_data: st
                 caption="📄 <b>Readable Text Format</b>\n\n<i>Alternative format for easy reading on mobile</i>",
                 parse_mode="HTML"
             )
-            files_sent_successfully = True
         except Exception as e:
             logging.error(f"File send error to user: {e}")
             short_msg = (
@@ -414,7 +452,6 @@ async def process_api_call(message: types.Message, api_type: str, input_data: st
                 f"⚡ <b>Powered by:</b> {POWERED_BY}"
             )
             await message.reply(short_msg, parse_mode="HTML")
-            files_sent_successfully = False
     else:
         colored = (
             f"🔍 <b>{api_type.upper()} Lookup Results</b>\n\n"
@@ -710,7 +747,7 @@ async def ask_api_input(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer("❌ Join channels first!", show_alert=True)
         return
     
-    # ✅ FIX: Extract api_type correctly for multi-part names
+    # Extract api_type correctly for multi-part names
     api_type = callback.data.replace('api_', '', 1)
     
     if api_type not in APIS or not APIS[api_type].get('url'):
@@ -888,10 +925,6 @@ async def remove_discount(callback: types.CallbackQuery, state: FSMContext):
     await show_premium_plans(callback, state)
 
 # ========== ADMIN PANEL (Complete) ==========
-# (Yahan se wahi admin panel code jo pehle tha, same rahega. 
-#  Main change nahi kiya, kyunki woh already working hai. 
-#  Bas ensure kar liya ki naye APIs ke liye admin commands mein koi issue nahi.)
-
 @dp.message(Command("admin"))
 async def admin_panel(message: types.Message):
     admin_level = await is_user_admin(message.from_user.id)
