@@ -233,59 +233,65 @@ def get_join_keyboard():
     buttons.append([InlineKeyboardButton(text="✅ Verify Join", callback_data="check_join")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-# --- MAIN MENU (Exactly as requested) ---
+# --- FINAL MAIN MENU (with all lookups) ---
 def get_main_menu(user_id):
     keyboard = [
         # Row 1 - 📱 Number  📱 Aadhaar
         [
-            InlineKeyboardButton(text="📱 Number", callback_data="api_num"),
-            InlineKeyboardButton(text="📱 Aadhaar", callback_data="api_aadhar")
+            InlineKeyboardButton(text="📱 ➜ 🔎 Number", callback_data="api_num"),
+            InlineKeyboardButton(text="🆔 ➜ 📄 Aadhaar", callback_data="api_aadhar")
         ],
         # Row 2 - 📱 Ration  🆔 TG2Num
         [
-            InlineKeyboardButton(text="📱 Ration", callback_data="api_ration"),
-            InlineKeyboardButton(text="🆔 TG2Num", callback_data="api_tg2num")
+            InlineKeyboardButton(text="🆔 ➜ 👨‍👩‍👧‍👦 Ration", callback_data="api_ration"),
+            InlineKeyboardButton(text="🆔 ➜ 📞 TG2Num", callback_data="api_tg2num")
         ],
         # Row 3 - 🚗 Vehicle  🚗 Challan
         [
-            InlineKeyboardButton(text="🚗 Vehicle", callback_data="api_vehicle"),
-            InlineKeyboardButton(text="🚗 Challan", callback_data="api_vehicle_chalan")
+            InlineKeyboardButton(text="🚗 ➜ 📋 Vehicle", callback_data="api_vehicle"),
+            InlineKeyboardButton(text="🚨 ➜ 💰 Challan", callback_data="api_vehicle_chalan")
         ],
-        # Row 4 - 🚗 Vehicle to Number (single button)
+        # Row 4 - 🚗 Vehicle to Number  📧 Email
         [
-            InlineKeyboardButton(text="🚗 Vehicle to Number", callback_data="api_vehicle_to_number")
+            InlineKeyboardButton(text="🚗 ➜ 📞 Vehicle 2 Num", callback_data="api_vehicle_to_number"),
+            InlineKeyboardButton(text="📧 Email", callback_data="api_email")
         ],
-        # Row 5 - 📧 Email  🏦 IFSC
+        # Row 5 - 🏦 IFSC  📮 Pincode
         [
-            InlineKeyboardButton(text="📧 Email", callback_data="api_email"),
-            InlineKeyboardButton(text="🏦 IFSC", callback_data="api_ifsc")
+            InlineKeyboardButton(text="🏦 ➜ 💳 IFSC", callback_data="api_ifsc"),
+            InlineKeyboardButton(text="📮 ➜ 📍 Pincode", callback_data="api_pincode")
         ],
-        # Row 6 - 📮 Pincode  📋 GST
+        # Row 6 - 🇵🇰 Pakistan  🌐 IP Lookup
         [
-            InlineKeyboardButton(text="📮 Pincode", callback_data="api_pincode"),
-            InlineKeyboardButton(text="📋 GST", callback_data="api_gst")
+            InlineKeyboardButton(text="🇵🇰 ➜ 📞 Pakistan", callback_data="api_pakistan"),
+            InlineKeyboardButton(text="🌍 ➜ 🛰 IP Lookup", callback_data="api_ip")
         ],
-        # Row 7 - 🌐 IP Lookup  🇵🇰 Pakistan
+        # Row 7 - 📋 GST  pan to gst
         [
-            InlineKeyboardButton(text="🌐 IP Lookup", callback_data="api_ip"),
-            InlineKeyboardButton(text="🇵🇰 Pakistan", callback_data="api_pakistan")
+            InlineKeyboardButton(text="🧾 ➜ 🏢 GST", callback_data="api_gst"),
+            InlineKeyboardButton(text="🪪 ➜ 🧾pan 2 gst", callback_data="api_pan_to_gst")
         ],
         # Row 8 - 📷 Instagram  🐱 GitHub
         [
-            InlineKeyboardButton(text="📷 Instagram", callback_data="api_instagram"),
-            InlineKeyboardButton(text="🐱 GitHub", callback_data="api_github")
+            InlineKeyboardButton(text="📸 ➜ 👤 Instagram", callback_data="api_instagram"),
+            InlineKeyboardButton(text="🐱 ➜ 📂 GitHub", callback_data="api_github")
         ],
-        # Row 9 - 🎁 Redeem  🔗 Refer & earn
+        # Row 9 - ff info  ff ban
         [
-            InlineKeyboardButton(text="🎁 Redeem", callback_data="redeem"),
-            InlineKeyboardButton(text="🔗 Refer & earn", callback_data="refer_earn")
+            InlineKeyboardButton(text="ff info", callback_data="api_ff_info"),
+            InlineKeyboardButton(text="ff ban", callback_data="api_ff_ban")
         ],
-        # Row 10 - 👤 Profile  💳 Buy Credits (Buy Credits is URL button)
+        # Row 10 - 🎁 Redeem  🔗 Refer & earn
         [
-            InlineKeyboardButton(text="👤 Profile", callback_data="profile"),
-            InlineKeyboardButton(text="💳 Buy Credits", url="https://t.me/Nullprotocol_X")
+            InlineKeyboardButton(text="🎟 ➜ 💎 Redeem", callback_data="redeem"),
+            InlineKeyboardButton(text="🎁 ➜ 🔗 Refer & earn", callback_data="refer_earn")
         ],
-        # Row 11 - ⭐ Premium Plans (single button)
+        # Row 11 - 👤 Profile  💳 Buy Credits
+        [
+            InlineKeyboardButton(text="👤 ➜ 📊 Profile", callback_data="profile"),
+            InlineKeyboardButton(text="💳 ➜ 💰 Buy Credits", url="https://t.me/Nullprotocol_X")
+        ],
+        # Row 12 - ⭐ Premium Plans
         [
             InlineKeyboardButton(text="⭐ Premium Plans", callback_data="premium_plans")
         ]
@@ -311,7 +317,7 @@ async def fetch_api_data(api_type, input_data):
             if resp.status_code != 200:
                 raise Exception(f"API Error {resp.status_code}")
             
-            # 🔥 Special handling for vehicle_to_number (always raw text)
+            # Special handling for vehicle_to_number (always raw text)
             if api_type == 'vehicle_to_number':
                 raw_text = resp.text
                 return {"raw_text": raw_text, **get_branding()}
@@ -359,7 +365,7 @@ async def process_api_call(message: types.Message, api_type: str, input_data: st
     raw_data = await fetch_api_data(api_type, input_data)
     await status_msg.delete()
 
-    # 🔥 Check if it's raw text response (for vehicle_to_number)
+    # Check if it's raw text response (for vehicle_to_number)
     if isinstance(raw_data, dict) and 'raw_text' in raw_data:
         # Raw text response
         raw_text = raw_data['raw_text']
@@ -405,7 +411,7 @@ async def process_api_call(message: types.Message, api_type: str, input_data: st
         # Log to database
         await log_lookup(user_id, api_type, input_data, raw_text[:1000])
         await update_last_active(user_id)
-        return  # ✅ Important: yahan return karo, taaki aage ka JSON code na chale
+        return  # Important: return here so that JSON code below doesn't run
 
     # --- JSON handling for all other APIs ---
     formatted_json, is_truncated = format_json_for_display(raw_data, 3500)
@@ -468,6 +474,7 @@ async def process_api_call(message: types.Message, api_type: str, input_data: st
         )
         await message.reply(colored, parse_mode="HTML")
 
+    # Log to database
     log_data = raw_data.copy()
     if isinstance(log_data, dict) and json_size > 10000:
         for key in log_data:
@@ -478,6 +485,7 @@ async def process_api_call(message: types.Message, api_type: str, input_data: st
     await log_lookup(user_id, api_type, input_data, json.dumps(log_data, indent=2))
     await update_last_active(user_id)
 
+    # Log to channel
     log_channel = LOG_CHANNELS.get(api_type)
     if log_channel and log_channel != "-1000000000000":
         try:
@@ -771,6 +779,9 @@ async def ask_api_input(callback: types.CallbackQuery, state: FSMContext):
         'aadhar': "📱 Enter Aadhaar Number (12 digits)",
         'ration': "📱 Enter Aadhaar Number for Ration Info (12 digits)",
         'tg2num': "🆔 Enter Telegram User ID",
+        'ff_info': "🎮 Enter Free Fire UID",
+        'ff_ban': "🎮 Enter Free Fire UID for Ban Status",
+        'pan_to_gst': "🆔 Enter PAN Number (10 characters)",
     }
     instructions = prompts.get(api_type, "Enter input")
     await callback.message.answer(
